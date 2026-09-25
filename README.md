@@ -10,6 +10,7 @@ High-performance .NET virtual memory allocations
 using var arena = new VirtualArena(1 << 30); // 1 GB
 
 arena.EnsureCommitted(1024);
+
 Console.WriteLine($"Arena.BaseAddress = {arena.BaseAddress:X}");
 Console.WriteLine($"Arena.ReservedBytes = {arena.ReservedBytes}");
 Console.WriteLine($"Arena.CommittedBytes = {arena.CommittedBytes}");
