@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows))) == 'true'">
+    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux))) == 'true'">
+    <DefineConstants>$(DefineConstants);PLATFORM_LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::FreeBSD))) == 'true'">
+    <DefineConstants>$(DefineConstants);PLATFORM_FREEBSD</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX))) == 'true'">
+    <DefineConstants>$(DefineConstants);PLATFORM_MACOS</DefineConstants>
+  </PropertyGroup>
+</Project>
