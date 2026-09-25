@@ -2,7 +2,7 @@
 
 public class VirtualArena : IDisposable
 {
-    public const uint DefaultCommitChunkSize = 1 << 20; // NOTE(alex): One megabyte!
+    public const uint DefaultCommitChunkBytes = 1 << 20; // NOTE(alex): One megabyte!
 
     public nint BaseAddress { get; private set; }
 
@@ -12,23 +12,23 @@ public class VirtualArena : IDisposable
 
     public nuint PageSize { get; }
 
-    public nuint CommitChunkSize { get; }
+    public nuint CommitChunkBytes { get; }
 
-    public VirtualArena(nuint reserveSize, nuint commitChunkSize = DefaultCommitChunkSize)
+    public VirtualArena(nuint reserveBytes, nuint commitChunkBytes = DefaultCommitChunkBytes)
     {
         PageSize = checked((nuint)Environment.SystemPageSize);
-        ReservedBytes = AlignUp(reserveSize, PageSize);
+        ReservedBytes = AlignUp(reserveBytes, PageSize);
 
         if (ReservedBytes > (nuint)nint.MaxValue)
         {
-            throw new ArgumentOutOfRangeException(nameof(reserveSize), "The requested size is larger than the process can address contiguously.");
+            throw new ArgumentOutOfRangeException(nameof(reserveBytes), "The requested size is larger than the process can address contiguously.");
         }
 
-        CommitChunkSize = AlignUp(CommitChunkSize, PageSize);
+        CommitChunkBytes = AlignUp(commitChunkBytes, PageSize);
         BaseAddress = Platform.Reserve(ReservedBytes);
     }
 
-    public void EnsureAccessible(nuint requiredByteCount)
+    public void EnsureCommitted(nuint requiredByteCount)
     {
         if (requiredByteCount <= CommittedBytes)
         {
@@ -45,13 +45,35 @@ public class VirtualArena : IDisposable
             throw new ArgumentOutOfRangeException(nameof(requiredByteCount), "Ran out of reserved virtual address space.");
         }
 
-        var target = RoundUpClamped(requiredByteCount, CommitChunkSize, ReservedBytes);
+        var target = RoundUpClamped(requiredByteCount, CommitChunkBytes, ReservedBytes);
         var bytesToCommit = target - CommittedBytes;
         var commitAddress = BaseAddress + checked((nint)CommittedBytes);
 
         Platform.Commit(commitAddress, bytesToCommit);
         CommittedBytes = target;
     }
+
+    public void DecommitAfter(nuint byteCountToKeep)
+    {
+        if (byteCountToKeep > ReservedBytes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(byteCountToKeep));
+        }
+
+        var keepCommitted = Math.Min(AlignUp(byteCountToKeep, PageSize), CommittedBytes);
+
+        var bytesToDecommit = CommittedBytes - keepCommitted;
+        if (bytesToDecommit == 0)
+        {
+            return;
+        }
+
+        var decommitAddress = BaseAddress + checked((nint)keepCommitted);
+        Platform.Decommit(decommitAddress, bytesToDecommit);
+        CommittedBytes = keepCommitted;
+    }
+
+    public void DecommitAll() => DecommitAfter(0);
 
     public void Dispose()
     {

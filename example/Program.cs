@@ -1,12 +1,42 @@
-﻿using VirtualMemory;
+﻿using System.Diagnostics;
+using VirtualMemory;
 
-using var arena = new VirtualArena(1 << 30);
+const uint zoneCount = 100_000_000u;
 
-Console.WriteLine($"Arena.BaseAddress = {arena.BaseAddress:X}");
-Console.WriteLine($"Arena.ReservedBytes = {FormatBytes(arena.ReservedBytes)}");
-Console.WriteLine($"Arena.CommittedBytes = {FormatBytes(arena.CommittedBytes)}");
+using var events = new VirtualList<ZoneEvent>(maxCapacity: zoneCount);
 
-return;
+while (true)
+{
+    var stopwatch = Stopwatch.StartNew();
+
+    for (uint zone = 0; zone < zoneCount; zone += 1)
+    {
+        var start = Stopwatch.GetTimestamp();
+
+        Thread.SpinWait(1);
+
+        var end = Stopwatch.GetTimestamp();
+        var duration = checked((ulong)(end - start));
+
+        if (duration > uint.MaxValue)
+        {
+            throw new InvalidOperationException("Duration exceeded maximum for 32-bit unsigned integer.");
+        }
+
+        events.Add(new ZoneEvent(start, (uint)duration, zone));
+    }
+
+    stopwatch.Stop();
+
+    Console.WriteLine($"Events.Count = {events.Count}");
+    Console.WriteLine($"Events.Capacity = {events.Capacity}");
+    Console.WriteLine($"Events.MaxCapacity = {events.MaxCapacity}");
+    Console.WriteLine($"Events.CommittedBytes = {FormatBytes(events.CommittedBytes)}");
+    Console.WriteLine($"Events.ReservedBytes = {FormatBytes(events.ReservedBytes)}");
+    Console.WriteLine($"Total Time = {stopwatch.Elapsed}");
+
+    events.Clear();
+}
 
 static string FormatBytes(nuint bytes)
 {
@@ -21,4 +51,18 @@ static string FormatBytes(nuint bytes)
     }
 
     return $"{size:0.##} {suffixes[order]}";
+}
+
+public readonly struct ZoneEvent
+{
+    public ZoneEvent(long startTimestamp, uint elapsedTicks, uint zoneIndex)
+    {
+        StartTimestamp = startTimestamp;
+        ElapsedTicks = elapsedTicks;
+        ZoneIndex = zoneIndex;
+    }
+
+    public long StartTimestamp { get; }
+    public uint ElapsedTicks { get; }
+    public uint ZoneIndex { get; }
 }
